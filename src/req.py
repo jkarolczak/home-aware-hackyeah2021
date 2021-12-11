@@ -1,13 +1,20 @@
 import requests
 import json
+import os
 
 from urllib.parse import urljoin
+
 
 with open("connection.json", "r") as fp:
     config = json.loads(fp.read())
 
+cache_dir = config.get("cache_dir", ".cache")
+if not os.path.exists(cache_dir):
+    os.mkdir(cache_dir)
 
-def __request(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl") -> str:
+
+def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/") -> str:
+    # if endpoint + payload is cached in a file, read and return it
     headers = {
         "BIK-OAPI-Key": config["BIK-OAPI-Key"],
         "Content-Type": "application/json"
@@ -20,15 +27,13 @@ def __request(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bi
         cert=(config["cert-crt"], config["cert-key"]),
         verify=False
     )
-    try:
-        assert response.status_code == 200
-        return response.json()
-    except:
-        raise Exception("¯\_(ツ)_/¯")
+    assert response.status_code == 200, f"API Error ({response.status_code}) ¯\_(ツ)_/¯"
+    data = response.json()
+    # TODO(max): cache `data` to some file
+    return data
     
 
-def __api4_nearest_poi(address: dict, poi_type: str) -> float:
-    endpoint = "/bik-api-4/punkty-zainteresowania-adres"
+def _api4_nearest_poi(address: dict, poi_type: str) -> float:
     payload = {
         "size": "100",
         "address": {
@@ -39,17 +44,19 @@ def __api4_nearest_poi(address: dict, poi_type: str) -> float:
         },
         "nearestPOI": poi_type
     }
-    return __request(endpoint, payload)["nearestPOI"]
+    return _api("bik-api-4/punkty-zainteresowania-adres", payload)["nearestPOI"]
     
     
 def post_office(address: dict) -> float:
-    return __api4_nearest_poi(address, "D_POCZTA")["D_POCZTA"]
+    return _api4_nearest_poi(address, "D_POCZTA")["D_POCZTA"]
 
 
-address = {
-    "code": 92221,
-    "city": "Łódź",
-    "street": "NOWOGRODZKA",
-    "buildingNumber": 17
-}
-print(post_office(address))
+if __name__ == '__main__':
+    address = {
+        "code": 92221,
+        "city": "Łódź",
+        "street": "NOWOGRODZKA",
+        "buildingNumber": 17
+    }
+    print(post_office(address))
+
