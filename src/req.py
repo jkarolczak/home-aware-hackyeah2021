@@ -3,12 +3,10 @@ import requests
 import json
 import os
 import warnings
-import base64
 
 from collections import defaultdict
-from frozendict import frozendict
 from urllib.parse import urljoin
-from time import time
+from typing import Tuple, Dict
 
 warnings.filterwarnings("ignore", "1013: InsecureRequestWarning")
 
@@ -25,8 +23,7 @@ def _payload_hash(payload: str) -> str:
     return str(hash(payload))
     
 
-
-def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/") -> str:
+def _api(endpoint: str, payload: Dict, base: str = "https://gateway.oapi.bik.pl/") -> str:
     # if endpoint + payload is cached in a file, read and return it
 
     payload_str = json.dumps(payload)
@@ -64,86 +61,7 @@ def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/
         f.write(json.dumps(dict(input=payload, output=data), indent=0))
     return data
 
-
-def _api4_nearest_poi(address: dict, poi_type: str) -> float:
-    payload = {
-        "size": "100",
-        "address": address,
-        "nearestPOI": poi_type
-    }
-    return _api("bik-api-4/punkty-zainteresowania-adres", payload)["nearestPOI"]
-
-
-def _api4_number_poi(address: dict, poi_type: str) -> float:
-    payload = {
-        "size": "500",
-        "address": address,
-        "poinumber": poi_type
-    }
-    return _api("bik-api-4/liczba-poi-adres", payload)["poinumber"]
-    
-    
-def _api4_demographic(address: dict, demographicData: str) -> float:
-    payload = {
-        "size": "100",
-        "address": address,
-        "demographicData": demographicData
-    }
-    return _api("/bik-api-4/dane-demograficzne-adres", payload)["demographicData"]
-    
-    
-def _api6(address: dict, section: str) -> float:
-    payload = {
-        "size": "STAT_250M",
-        "productCode": "ALL",
-        "address": address,
-        "section": section
-    }
-    return _api("bik-api-6/address", payload)["geostats"]    
-
-
-def consumer_expenses(address: dict) -> float:
-    payload = {
-        "size": 100,
-        "address": address,
-        "wealth": "WK_RAZEM"
-    }
-    return _api("/bik-api-4/zamoznosc-adres", payload)["wealth"]["WK_RAZEM"]
-
-
-def _api10_address_point(address: dict, address_point: str) -> float:
-    payload = {
-        "size": "100",
-        "address": {
-            "code": address["code"],
-            "city": address["city"],
-            "street": address["street"],
-            "buildingNumber": address["buildingNumber"]
-        },
-        "addressPoint": address_point
-    }
-    return _api("bik-api-10/odleglosc-punkt-adres", payload)["addressPoint"]
-
-
-def _api10_area_statistic(address: dict, area_statistic: str) -> float:
-    payload = {
-        "size": "500",
-        "address": {
-            "code": address["code"],
-            "city": address["city"],
-            "street": address["street"],
-            "buildingNumber": address["buildingNumber"]
-        },
-        "areaStatistic": area_statistic
-    }
-    return _api("bik-api-10/charakterystyka-obszaru-adres", payload)["areaStatistic"]
-
-
-def post_office(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_POCZTA")["D_POCZTA"]
-
-
-def _api3_safety(address: dict) -> dict:
+def _api3_safety(address: Dict) -> Dict:
     payload = {
             "address": {
                 "code": str(address["code"]),
@@ -157,25 +75,139 @@ def _api3_safety(address: dict) -> dict:
     
     return _api("bik-api-3/bezpieczenstwo-adres", payload)[0]["details"]
 
+def _api4_nearest_poi(address: Dict, poi_type: str) -> float:
+    payload = {
+        "size": "100",
+        "address": address,
+        "nearestPOI": poi_type
+    }
+    return _api("bik-api-4/punkty-zainteresowania-adres", payload)["nearestPOI"]
 
-def crimes(data: dict) -> float:
-    return sum(data["details"].values())
+
+def _api4_number_poi(address: Dict, poi_type: str) -> float:
+    payload = {
+        "size": "500",
+        "address": address,
+        "poinumber": poi_type
+    }
+    return _api("bik-api-4/liczba-poi-adres", payload)["poinumber"]
+    
+    
+def _api4_demographic(address: Dict, demographicData: str) -> float:
+    payload = {
+        "size": "100",
+        "address": address,
+        "demographicData": demographicData
+    }
+    return _api("/bik-api-4/dane-demograficzne-adres", payload)["demographicData"]
+    
+    
+def _api6(address: Dict, section: str) -> float:
+    payload = {
+        "size": "STAT_250M",
+        "productCode": "ALL",
+        "address": address,
+        "section": section
+    }
+    return _api("bik-api-6/address", payload)["geostats"]    
 
 
-def price(data: dict) -> float:
-    return data["details"]["offer_price"]
+def _api10_address_point(address: Dict, address_point: str) -> float:
+    payload = {
+        "size": "100",
+        "address": {
+            "code": address["code"],
+            "city": address["city"],
+            "street": address["street"],
+            "buildingNumber": address["buildingNumber"]
+        },
+        "addressPoint": address_point
+    }
+    return _api("bik-api-10/odleglosc-punkt-adres", payload)["addressPoint"]
 
 
-def car_collisions(data: dict) -> float:
+def _api10_area_statistic(address: Dict, area_statistic: str) -> float:
+    payload = {
+        "size": "500",
+        "address": {
+            "code": address["code"],
+            "city": address["city"],
+            "street": address["street"],
+            "buildingNumber": address["buildingNumber"]
+        },
+        "areaStatistic": area_statistic
+    }
+    return _api("bik-api-10/charakterystyka-obszaru-adres", payload)["areaStatistic"]
+
+def _api11(address: Dict, activity: str) -> float:
+    address = {
+        "code": str(address)[:2] + "-" + str(address)[2:],
+        "city": address["city"],
+        "street": address["street"],
+        "building_number": str(address["buildingNumber"])
+    }
+    
+    payload = {
+        "size": "500M",
+        "address": address,
+        "category": activity
+    }
+    return float(_api("bik-api-11/zachowania-wg-adresu", payload)["value"][:-1])
+
+
+def airports(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_TRANSPORT_LOTNISKO_MIEDZYNARODOWE")["D_TRANSPORT_LOTNISKO_MIEDZYNARODOWE"]
+
+
+def between_20_30(address: Dict) -> float:
+    groups = [
+        "POPT2024",
+        "POPT2529"
+    ]
+    return sum([_api4_demographic(address, group)[group] for group in groups])
+
+
+def bus_stop(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_TRANSPORT_PRZYSTANEK_AUTOBUSOWY")["D_TRANSPORT_PRZYSTANEK_AUTOBUSOWY"]
+
+
+def car_collisions(data: Dict) -> float:
     return data["details"]["hitting_a_pedestrian"]
 
 
-def price_and_safety(address: dict) -> (float, float, float):
-    data = _api3_safety(address)
-    return price(data[0]), crimes(data[1]), car_collisions(data[2])
+def civil_services(address: Dict) -> float:
+    fire_stations = [
+        "D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_OCHOTNICZA_STRAZ_POZARNA",
+        "D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_STRAZ_POZARNA"
+    ]
+    fire_stations = [_api4_nearest_poi(address, poi)[poi] for poi in fire_stations]
+    police = _api4_nearest_poi(address, "D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_KOMENDA_POLICJI")["D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_KOMENDA_POLICJI"]
+    return (min(fire_stations) + police) / 2
+
+    
+def coordinates(address: Dict) -> tuple:
+    result = _api6(address, "SR_CR3_KREDYTOBIORCY")[0]["inputDataCoordinates"]
+    return result["utm_x"], result["utm_y"]
 
 
-def culture_entertainment(address: dict) -> float:
+def cr3(address: Dict) -> tuple:
+    return _api6(address, "SR_CR3_KREDYTOBIORCY")[0]["result"]
+
+
+def crimes(data: Dict) -> float:
+    return sum(data["details"].values())
+
+
+def consumer_expenses(address: Dict) -> float:
+    payload = {
+        "size": 100,
+        "address": address,
+        "wealth": "WK_RAZEM"
+    }
+    return _api("/bik-api-4/zamoznosc-adres", payload)["wealth"]["WK_RAZEM"]
+
+
+def culture_entertainment(address: Dict) -> float:
     pois = [
         "D_ROZRYWKA_I_KULTURA_KINO",
         "D_ROZRYWKA_I_KULTURA_KREGIELNIE",
@@ -186,53 +218,11 @@ def culture_entertainment(address: dict) -> float:
     return sum(distances) / len(distances)
 
 
-def mall(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_CENTRUM_HANDLOWE")["D_CENTRUM_HANDLOWE"]
+def dating_apps(address: Dict) -> float:
+    return _api11(address, "PROFILE_DATING")
 
 
-def health(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_ZDROWIE")["D_ZDROWIE"]
-
-
-def railway_station(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_TRANSPORT_PKP_PRZYSTANEK_LUB_STACJA_DWORZEC")["D_TRANSPORT_PKP_PRZYSTANEK_LUB_STACJA_DWORZEC"]
-
-
-def bus_stop(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_TRANSPORT_PRZYSTANEK_AUTOBUSOWY")["D_TRANSPORT_PRZYSTANEK_AUTOBUSOWY"]
-
-
-def tram_stop(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_TRANSPORT_PRZYSTANEK_TRAMWAJOWY")["D_TRANSPORT_PRZYSTANEK_TRAMWAJOWY"]
-
-
-def civil_services(address: dict) -> float:
-    fire_stations = [
-        "D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_OCHOTNICZA_STRAZ_POZARNA",
-        "D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_STRAZ_POZARNA"
-    ]
-    fire_stations = [_api4_nearest_poi(address, poi)[poi] for poi in fire_stations]
-    police = _api4_nearest_poi(address, "D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_KOMENDA_POLICJI")["D_URZAD_I_SLUZBA_PUBLICZNA_SLUZBY_PUBLICZNE_KOMENDA_POLICJI"]
-    return (min(fire_stations) + police) / 2
-
-
-def airports(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_TRANSPORT_LOTNISKO_MIEDZYNARODOWE")["D_TRANSPORT_LOTNISKO_MIEDZYNARODOWE"]
-
-
-def worship(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_MIEJSCE_KULTU_KOSCIOL")["D_MIEJSCE_KULTU_KOSCIOL"]
-
-
-def university(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_EDUKACJA_WYZSZE_SZKOLY_PUBLICZNE")["D_EDUKACJA_WYZSZE_SZKOLY_PUBLICZNE"]
-
-
-def parcel_lockers(address: dict) -> float:
-    return _api4_nearest_poi(address, "D_PRZESYLKI_PACZKOMAT")["D_PRZESYLKI_PACZKOMAT"]
-
-
-def education(address: dict) -> float:
+def education(address: Dict) -> float:
     pois = [
         "EDUKACJA_PRZEDSZKOLA_I_PUNKTY_PRZEDSZKOLNE",
         "EDUKACJA_SZKOLY_PODSTAWOWE",
@@ -244,15 +234,32 @@ def education(address: dict) -> float:
     return sum([_api4_number_poi(address, poi)[poi] for poi in pois])
 
 
-def between_20_30(address: dict) -> float:
-    groups = [
-        "POPT2024",
-        "POPT2529"
-    ]
-    return sum([_api4_demographic(address, group)[group] for group in groups])
+def freeways(address: Dict) -> float:
+    return min(_api10_address_point(address, "odl_autost")["odl_autost"],
+               _api10_address_point(address, "odl_drEksp")["odl_drEksp"])
+    
+
+def garages(address: Dict) -> float:
+    return _api10_area_statistic(address, "garaze")["garaze"]
 
 
-def over_60(address: dict) -> float:
+def geoscore(address: Dict) -> float:
+    return _api("bik-api-5/geoscore-adres", address)["score"]
+
+
+def health(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_ZDROWIE")["D_ZDROWIE"]
+
+
+def mall(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_CENTRUM_HANDLOWE")["D_CENTRUM_HANDLOWE"]
+
+
+def nature(address: Dict) -> float:
+    return min(_api10_area_statistic(address, "lasy")["lasy"], _api10_area_statistic(address, "zielen_mi")["zielen_mi"])
+
+
+def over_60(address: Dict) -> float:
     groups = [
         "POPT6064",
         "POPT6569",
@@ -262,35 +269,61 @@ def over_60(address: dict) -> float:
     return sum([_api4_demographic(address, group)[group] for group in groups])
 
 
-def geoscore(address: dict) -> float:
-    return _api("bik-api-5/geoscore-adres", address)["score"]
+def parcel_lockers(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_PRZESYLKI_PACZKOMAT")["D_PRZESYLKI_PACZKOMAT"]
 
 
-def cr3(address: dict) -> tuple:
-    return _api6(address, "SR_CR3_KREDYTOBIORCY")[0]["result"]
-    
-    
-def coordinates(address: dict) -> tuple:
-    result = _api6(address, "SR_CR3_KREDYTOBIORCY")[0]["inputDataCoordinates"]
-    return result["utm_x"], result["utm_y"]
+def post_office(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_POCZTA")["D_POCZTA"]
 
 
-def railway_tracks(address: dict) -> float:
+def price(data: Dict) -> float:
+    return data["details"]["offer_price"]
+
+
+def price_and_safety(address: Dict) -> Tuple[float, float, float]:
+    data = _api3_safety(address)
+    return price(data[0]), crimes(data[1]), car_collisions(data[2])
+
+
+def railway_station(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_TRANSPORT_PKP_PRZYSTANEK_LUB_STACJA_DWORZEC")["D_TRANSPORT_PKP_PRZYSTANEK_LUB_STACJA_DWORZEC"]
+
+
+def railway_tracks(address: Dict) -> float:
     return _api10_address_point(address, "odl_tory")["odl_tory"]
 
 
-def freeways(address: dict) -> float:
-    return min(_api10_address_point(address, "odl_autost")["odl_autost"],
-               _api10_address_point(address, "odl_drEksp")["odl_drEksp"])
+def sport(address: Dict) -> float:
+    return _api11(address, "PROFILE_SPORT_ACTIVE")
 
 
-def garages(address: dict) -> float:
-    return _api10_area_statistic(address, "garaze")["garaze"]
+def tram_stop(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_TRANSPORT_PRZYSTANEK_TRAMWAJOWY")["D_TRANSPORT_PRZYSTANEK_TRAMWAJOWY"]
 
 
-def nature(address: dict) -> float:
-    return min(_api10_area_statistic(address, "lasy")["lasy"], _api10_area_statistic(address, "zielen_mi")["zielen_mi"])
+def university(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_EDUKACJA_WYZSZE_SZKOLY_PUBLICZNE")["D_EDUKACJA_WYZSZE_SZKOLY_PUBLICZNE"]
 
+
+def worship(address: Dict) -> float:
+    return _api4_nearest_poi(address, "D_MIEJSCE_KULTU_KOSCIOL")["D_MIEJSCE_KULTU_KOSCIOL"]
+
+
+def criterions(address: Dict) -> Dict:
+    functions = [
+        consumer_expenses, university, education, dating_apps, between_20_30, 
+        parcel_lockers, civil_services, railway_tracks, freeways, airports, 
+        nature, garages, bus_stop, tram_stop, railway_station, post_office, 
+        mall, culture_entertainment, health, geoscore, cr3, over_60, worship, 
+        sport, coordinates
+    ]
+    results = {fun.__name__: fun(address) for fun in functions}
+    price, crimes, car_collisions = price_and_safety(address)
+    results["price"] = price
+    results["crimes"] = crimes
+    results["car_collisions"] = car_collisions
+    
 
 if __name__ == '__main__':
     address = {
@@ -299,17 +332,5 @@ if __name__ == '__main__':
         "street": "NOWOGRODZKA",
         "buildingNumber": 17
     }
-    t = time()
-    a = post_office(address)
-    #a = price_and_safety(address)
-    print(time() - t, 'seconds')
-    b = post_office(address)
-    #b = price_and_safety(address)
-    print(time() - t, 'seconds')
-
-    t = time()
-    c = post_office(address)
-    #c = price_and_safety(address)
-    print(time() - t, 'secons')
-    print(c)
-    assert a == b == c
+    
+    print(dating_apps(address))
