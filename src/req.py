@@ -5,6 +5,7 @@ import os
 import warnings
 
 from collections import defaultdict
+from deepdiff import DeepHash
 from functools import lru_cache
 from urllib.parse import urljoin
 from typing import Tuple, Dict
@@ -21,14 +22,18 @@ if not os.path.exists(_cache_dir):
 
 
 def _payload_hash(payload: str) -> str:
-    return str(hash(payload))
+    return str(DeepHash(payload)[payload])
     
 
-def _api(endpoint: str, payload: Dict, base: str = "https://gateway.oapi.bik.pl/") -> str:
+def _api(
+    endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/"
+) -> str:
     # if endpoint + payload is cached in a file, read and return it
 
     payload_str = json.dumps(payload)
-    cache_file = os.path.join(_cache_dir, f'{endpoint}=={_payload_hash(payload_str)}.json')
+    cache_file = os.path.join(
+        _cache_dir, f"{endpoint}=={_payload_hash(payload_str)}.json"
+    )
     if cache_file in _cache_dict:
         # level 1 cache
         # print('L1 CACHE', cache_file)
@@ -36,14 +41,13 @@ def _api(endpoint: str, payload: Dict, base: str = "https://gateway.oapi.bik.pl/
     elif os.path.exists(cache_file):
         # level 2 cache
         with open(cache_file, "r") as f:
-            for line in f.readlines():
-                data = json.loads(line)
-                inp, out = data['input'], data['output']
-                if payload == inp:
-                    # print('L2 CACHE', cache_file)
-                    _cache_dict[endpoint][payload_str] = out
-                    return data
-
+            data = json.loads(f.read())
+            inp, out = data["input"], data["output"]
+            if payload == inp:
+                # print('L2 CACHE', cache_file)
+                _cache_dict[endpoint][payload_str] = out
+                return out
+    
     response = requests.request("POST", urljoin(base, endpoint),
         headers={
             "BIK-OAPI-Key": _config["BIK-OAPI-Key"],
@@ -61,6 +65,7 @@ def _api(endpoint: str, payload: Dict, base: str = "https://gateway.oapi.bik.pl/
     with open(cache_file, "a") as f:
         f.write(json.dumps(dict(input=payload, output=data), indent=0))
     return data
+
 
 def _api3_safety(address: Dict) -> Dict:
     payload = {
