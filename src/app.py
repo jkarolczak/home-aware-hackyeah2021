@@ -19,6 +19,11 @@ app_name = 'HomeFinder'
 
 demo_variants = [
     {'City': 'Łódź', 'Street': 'ALEKSANDROWSKA', 'Building No.': '104', 'Postal Code': '91224'},
+    {'City': 'Łódź', 'Street': 'LEGIONÓW', 'Building No.': '32', 'Postal Code': '90001'},
+    {'City': 'Łódź', 'Street': 'ROMANOWSKA', 'Building No.': '55', 'Postal Code': '91174'},
+    {'City': 'Łódź', 'Street': 'PŁOCKA', 'Building No.': '10', 'Postal Code': '90001'},
+    {'City': 'Łódź', 'Street': 'WYŻSZA', 'Building No.': '25', 'Postal Code': '93266'},
+    #{'City': 'Łódź', 'Street': 'TATRZAŃSKA', 'Building No.': '28', 'Postal Code': '93115'},
 ]
 
 def read_profiles():
@@ -176,7 +181,7 @@ def main():
         '4. Analysis': page_analysis,
         #'5. Fine-tuning': page_tuning,
     }
-    name = st.sidebar.radio('Select step', pages.keys(), index=3)
+    name = st.sidebar.radio('Select step', pages.keys(), index=0)
 
     st.sidebar.write('Demo controls')
     demo = st.sidebar.checkbox('Show demo locations', value=True)
