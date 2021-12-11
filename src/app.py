@@ -143,6 +143,8 @@ def page_analysis():
         df['Criterion'] = list(pref.keys())
         df['Utility'] = [pref[k]*util[k] for k in pref]
         df = df.sort_values(by='Utility', ascending=False)
+        st.table(df)
+
 
         sns.barplot(y='Criterion', x='Utility', data=df, ax=ax)
         ax.set_ylabel('Criterion'); ax.set_xlabel('Utility')
