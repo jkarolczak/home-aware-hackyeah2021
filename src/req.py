@@ -63,7 +63,7 @@ def _api(
     _cache_dict[endpoint][payload_str] = data
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
     with open(cache_file, "a") as f:
-        f.write(json.dumps(dict(input=payload, output=data), indent=0))
+        f.write(json.dumps(dict(input=payload, output=data))
     return data
 
 
