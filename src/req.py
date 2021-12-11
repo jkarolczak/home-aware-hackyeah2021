@@ -25,7 +25,7 @@ def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/
     # if endpoint + payload is cached in a file, read and return it
     payload = json.dumps(payload)
 
-    cache_file = os.path.join(_cache_dir, endpoint + _payload_hash(payload))
+    cache_file = os.path.join(_cache_dir, endpoint + '==' + _payload_hash(payload)) + '.json'
     if cache_file in _cache_dict:
         # level 1 cache
         #print('L1 CACHE', cache_file)
