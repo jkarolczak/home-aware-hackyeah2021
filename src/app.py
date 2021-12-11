@@ -6,26 +6,28 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import graphviz as graphviz
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from src.req import criterions
+from src.model import partial_utilities, global_utility
+
+plt.style.use('ggplot')
 
 sess = st.session_state
 
 app_name = "HomeFinder"
 
 demo_variants = [
-    {"City": "Łódź", "Street": "Słoneczna", "Building No.": "64", "Postcode": "60123"},
-    {"City": "Łódź", "Street": "Dobra", "Building No.": "42", "Postcode": "60123"},
-    {"City": "Łódź", "Street": "Radosna", "Building No.": "33", "Postcode": "60123"},
-    {"City": "Łódź", "Street": "Pogodna", "Building No.": "14", "Postcode": "60123"},
+    {'City': 'Łódź', 'Street': 'ALEKSANDROWSKA', 'Building No.': '104', 'Postal Code': '91224'},
 ]
 
+def read_profiles():
+    df = pd.read_csv('src/presets.csv', index_col='function')
+    return {col_name: df[col_name].to_dict() for col_name in df.columns}
+
 # profile name -> default preferences
-profiles = {
-    "Student": [],
-    "Couple": [],
-    "Family with children": [],
-    "Working adult": [],
-    "Pensioner": [],
-}
+profiles = read_profiles()
 
 coarse_criteria = [
     "Safety",
@@ -69,6 +71,11 @@ hidden_criteria = {
 }
 
 
+@st.experimental_memo
+def variant_details(x):
+    return criterions(city=x['City'], street=x['Street'], buildingNumber=int(x['Building No.']), code=int(x['Postal Code']))
+
+
 def format_variant(x):
     return f"{x['Street']} {x['Building No.']}, {x['City']}"
 
@@ -76,7 +83,6 @@ def format_variant(x):
 def page_variants():
     st.markdown("# 🏘️ Locations")
     st.markdown("Please add addresses for a few interesting locations.")
-
     st.markdown("## New location")
     with st.form("new-location", clear_on_submit=True):
         cols = st.columns(4)
@@ -104,11 +110,47 @@ def page_variants():
     coords = np.random.randn(20, 2) / 20 + [51.75, 19.45]
     st.map(pd.DataFrame(coords, columns=["lat", "lon"]))
 
+    st.markdown('## New location')
+    with st.form('new-location', clear_on_submit=False):
+        cols = st.columns(4)
+        city = cols[0].text_input('City', value='Łódź')
+        street = cols[1].text_input('Street')
+        building_no = cols[2].text_input('Building No.')
+        postal_code = re.sub('[^0-9]', '', cols[3].text_input('Postal Code'))
+        new_variant = st.form_submit_button('Add')
+
+    if new_variant:
+        if not city:
+            st.error('City must be non-empty')
+        elif not street:
+            st.error('Street must be non-empty')
+        elif not (building_no and building_no.isnumeric()):
+            st.error('Building No. must be a number')
+        elif postal_code:
+            st.error('Postal Code must be non-empty')
+        else:
+            sess.variants.append({'City': city, 'Street': street, 'Building No.': building_no, 'Postal Code': postal_code})
+
+    if sess.variants:
+        st.markdown('## My locations')
+        st.table(pd.DataFrame(sess.variants))
+
+        coords = []
+        for variant in sess.variants:
+            details = variant_details(variant)
+            lat, lon = details['latlon']
+            coords.append(dict(lat=lat, lon=lon))
+        st.map(pd.DataFrame(coords))
+
+    if sess.show_variant_details:
+        st.markdown('## Location details')
+        for variant in sess.variants:
+            st.write(variant_details(variant))
 
 def page_profile():
     st.markdown("# 🧑 User Profile")
 
-    profile = st.selectbox("I'm best described as...", profiles.keys())
+    sess.profile = st.selectbox("I'm best described as...", profiles.keys())
 
     n_cols = 3
     cols = st.columns(n_cols)
@@ -159,6 +201,36 @@ def page_preferences():
         st.graphviz_chart(g, use_container_width=True)
 
 
+def page_analysis():
+    st.markdown('# 🧑‍🔬 Analysis')
+
+    pref = profiles[sess.profile]
+        
+    st.subheader('Profile')
+    st.write(pref)
+
+    for variant in sess.variants:
+        details = variant_details(variant)
+        st.write(variant)
+
+        util = partial_utilities(pref, details)
+        score = global_utility(pref, details)
+
+        fig, ax = plt.subplots()
+        df = pd.DataFrame()
+        df['Criterion'] = list(pref.keys())
+        df['Utility'] = [pref[k]*util[k] for k in pref]
+        df = df.sort_values(by='Utility', ascending=False)
+
+        sns.barplot(y='Criterion', x='Utility', data=df, ax=ax)
+        ax.set_ylabel('Criterion'); ax.set_xlabel('Utility')
+        st.pyplot(fig)
+
+        st.subheader(f'HomeScore: {score:.4f}')
+
+        st.write(details)
+        st.markdown('---')
+
 def page_tuning():
     st.markdown("# 🔧 Fine-tuning")
 
@@ -167,7 +239,10 @@ def main():
     # initialize state
     if "variants" not in sess:
         sess.variants = []
+    if 'preferences' not in sess:
         sess.preferences = []
+    
+    sess.profile = 'Student'
 
     st.set_page_config(
         page_title="Rośliniary App",
@@ -178,16 +253,17 @@ def main():
     st.sidebar.markdown(f"# {app_name} 🌟")
 
     pages = {
-        "1️. Locations": page_variants,
-        "2. User Profile": page_profile,
-        "3. Preferences (optional)": page_preferences,
-        "4. Analysis": page_analysis,
-        "5. Fine-tuning": page_tuning,
+        '1️. Locations': page_variants,
+        '2. User Profile': page_profile,
+        '3. Preferences (optional)': page_preferences,
+        '4. Analysis': page_analysis,
+        #'5. Fine-tuning': page_tuning,
     }
-    name = st.sidebar.radio("Select step", pages.keys())
+    name = st.sidebar.radio('Select step', pages.keys(), index=3)
 
-    st.sidebar.write("Demo controls")
-    demo = st.sidebar.checkbox("Show demo locations", value=True)
+    st.sidebar.write('Demo controls')
+    demo = st.sidebar.checkbox('Show demo locations', value=True)
+    sess.show_variant_details = st.sidebar.checkbox('Show location details', value=False)
 
     if demo:
         sess.variants = demo_variants
@@ -196,8 +272,6 @@ def main():
 
     # st.sidebar.info('Rośliniary Team :)')
     pages[name]()
-    # page_tuning()
-    # page_preferences()
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
-from io import SEEK_CUR
 import requests
 import json
 import os
 import warnings
+import urllib3
+import utm
 
 from collections import defaultdict
 from deepdiff import DeepHash
@@ -10,13 +11,14 @@ from functools import lru_cache
 from urllib.parse import urljoin
 from typing import Tuple, Dict
 
-warnings.filterwarnings("ignore", "1013: InsecureRequestWarning")
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-with open("connection.json", "r") as fp:
+with open("src/connection.json", "r") as fp:
     _config = json.loads(fp.read())
 
+_cache_debug = False
 _cache_dict = defaultdict(dict)
-_cache_dir = _config.get("cache_dir", ".cache")
+_cache_dir = _config.get("cache_dir", "src/.cache")
 if not os.path.exists(_cache_dir):
     os.mkdir(_cache_dir)
 
@@ -25,29 +27,32 @@ def _payload_hash(payload: str) -> str:
     return str(DeepHash(payload)[payload])
     
 
-def _api(
-    endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/"
-) -> str:
+def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/") -> str:
     # if endpoint + payload is cached in a file, read and return it
 
     payload_str = json.dumps(payload)
-    cache_file = os.path.join(
-        _cache_dir, f"{endpoint}=={_payload_hash(payload_str)}.json"
-    )
+    cache_file = os.path.join(_cache_dir, f"{endpoint}=={_payload_hash(payload_str)}.json")
+    if _cache_debug: print('CHECK FOR CACHE', cache_file)
     if cache_file in _cache_dict:
         # level 1 cache
-        # print('L1 CACHE', cache_file)
+        if _cache_debug: print('L1 CACHE', cache_file)
         return _cache_dict[endpoint][payload_str]
     elif os.path.exists(cache_file):
         # level 2 cache
         with open(cache_file, "r") as f:
-            data = json.loads(f.read())
-            inp, out = data["input"], data["output"]
-            if payload == inp:
-                # print('L2 CACHE', cache_file)
-                _cache_dict[endpoint][payload_str] = out
-                return out
+            for line in f.read().split('\n'):
+                if not line: continue
+                try:
+                    data = json.loads(line)
+                except:
+                    raise Exception('Error reading JSON: ', line)
+                inp, out = data["input"], data["output"]
+                if payload == inp:
+                    if _cache_debug: print('L2 CACHE', cache_file)
+                    _cache_dict[endpoint][payload_str] = out
+                    return out
 
+    if _cache_debug: print('FETCH', endpoint)
     response = requests.request("POST", urljoin(base, endpoint),
         headers={
             "BIK-OAPI-Key": _config["BIK-OAPI-Key"],
@@ -62,8 +67,9 @@ def _api(
 
     _cache_dict[endpoint][payload_str] = data
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    if _cache_debug: print('SAVE CACHE', cache_file)
     with open(cache_file, "a") as f:
-        f.write(json.dumps(dict(input=payload, output=data))
+        f.write(json.dumps(dict(input=payload, output=data)) + '\n')
     return data
 
 
@@ -105,7 +111,7 @@ def _api4_demographic(address: Dict, demographicData: str) -> float:
         "address": address,
         "demographicData": demographicData
     }
-    return _api("/bik-api-4/dane-demograficzne-adres", payload)["demographicData"]
+    return _api("bik-api-4/dane-demograficzne-adres", payload)["demographicData"]
     
     
 def _api6(address: Dict, section: str) -> float:
@@ -197,7 +203,7 @@ def coordinates(address: Dict) -> tuple:
 
 
 def cr3(address: Dict) -> tuple:
-    return _api6(address, "SR_CR3_KREDYTOBIORCY")[0]["result"]
+    return float(_api6(address, "SR_CR3_KREDYTOBIORCY")[0]["result"])
 
 
 def crimes(data: Dict) -> float:
@@ -210,7 +216,7 @@ def consumer_expenses(address: Dict) -> float:
         "address": address,
         "wealth": "WK_RAZEM"
     }
-    return _api("/bik-api-4/zamoznosc-adres", payload)["wealth"]["WK_RAZEM"]
+    return _api("bik-api-4/zamoznosc-adres", payload)["wealth"]["WK_RAZEM"]
 
 
 def culture_entertainment(address: Dict) -> float:
@@ -241,16 +247,17 @@ def education(address: Dict) -> float:
 
 
 def freeways(address: Dict) -> float:
-    return min(_api10_address_point(address, "odl_autost")["odl_autost"],
-               _api10_address_point(address, "odl_drEksp")["odl_drEksp"])
+    autostr = float(_api10_address_point(address, "odl_autost")["odl_autost"])
+    ekspres = float(_api10_address_point(address, "odl_drEksp")["odl_drEksp"])
+    return min(autostr, ekspres)
     
 
 def garages(address: Dict) -> float:
-    return _api10_area_statistic(address, "garaze")["garaze"]
+    return int(_api10_area_statistic(address, "garaze")["garaze"])
 
 
 def geoscore(address: Dict) -> float:
-    return _api("bik-api-5/geoscore-adres", address)["score"]
+    return float(_api("bik-api-5/geoscore-adres", address)["score"])
 
 
 def health(address: Dict) -> float:
@@ -262,7 +269,9 @@ def mall(address: Dict) -> float:
 
 
 def nature(address: Dict) -> float:
-    return min(_api10_area_statistic(address, "lasy")["lasy"], _api10_area_statistic(address, "zielen_mi")["zielen_mi"])
+    lasy = float(_api10_area_statistic(address, "lasy")["lasy"])
+    zielen = float(_api10_area_statistic(address, "zielen_mi")["zielen_mi"])
+    return lasy + zielen
 
 
 def over_60(address: Dict) -> float:
@@ -297,7 +306,7 @@ def railway_station(address: Dict) -> float:
 
 
 def railway_tracks(address: Dict) -> float:
-    return _api10_address_point(address, "odl_tory")["odl_tory"]
+    return float(_api10_address_point(address, "odl_tory")["odl_tory"])
 
 
 def sport(address: Dict) -> float:
@@ -317,7 +326,7 @@ def worship(address: Dict) -> float:
 
 
 @lru_cache(maxsize=256)
-def criterions(address: Dict) -> Dict:
+def criterions(code: int, city: str, street: str, buildingNumber: int) -> Dict:
     functions = [
         consumer_expenses, university, education, dating_apps, between_20_30, 
         parcel_lockers, civil_services, railway_tracks, freeways, airports, 
@@ -325,19 +334,17 @@ def criterions(address: Dict) -> Dict:
         mall, culture_entertainment, health, geoscore, cr3, over_60, worship, 
         sport, coordinates
     ]
+    address = { "code": code, "city": city, "street": street, "buildingNumber": buildingNumber }
     results = {fun.__name__: fun(address) for fun in functions}
     price, crimes, car_collisions = price_and_safety(address)
     results["price"] = price
     results["crimes"] = crimes
     results["car_collisions"] = car_collisions
+    a, b = results["coordinates"]
+    results["latlon"] = utm.to_latlon(a, b, 34, 'U') # Hardcode Łódź
+    return results
     
 
 if __name__ == '__main__':
-    address = {
-        "code": 92221,
-        "city": "Łódź",
-        "street": "NOWOGRODZKA",
-        "buildingNumber": 17
-    }
-    
-    print(dating_apps(address))
+    #print(university(dict(code=91224, city="Łódź", street="ALEKSANDROWSKA", buildingNumber=104)))
+    print(criterions(code=91224, city="Łódź", street="ALEKSANDROWSKA", buildingNumber=104))

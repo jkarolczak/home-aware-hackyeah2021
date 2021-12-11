@@ -1,2 +1,4 @@
 streamlit==1.2.0
 graphviz==0.19
+deepdiff==5.6.0
+utm==0.7.0
