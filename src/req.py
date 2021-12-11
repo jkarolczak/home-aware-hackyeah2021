@@ -271,7 +271,7 @@ def mall(address: Dict) -> float:
 def nature(address: Dict) -> float:
     lasy = float(_api10_area_statistic(address, "lasy")["lasy"])
     zielen = float(_api10_area_statistic(address, "zielen_mi")["zielen_mi"])
-    return sum(lasy, zielen)
+    return lasy + zielen
 
 
 def over_60(address: Dict) -> float:
