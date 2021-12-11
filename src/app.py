@@ -98,33 +98,6 @@ def page_variants():
         new_variant = st.form_submit_button("Add")
 
     if new_variant:
-        sess.variants.append(
-            {
-                "City": city,
-                "Street": street,
-                "Building No.": building_no,
-                "Postcode": postcode,
-            }
-        )
-
-    st.markdown("## My locations")
-    st.table(pd.DataFrame(sess.variants))
-
-    st.markdown("## Remove location")
-
-    coords = np.random.randn(20, 2) / 20 + [51.75, 19.45]
-    st.map(pd.DataFrame(coords, columns=["lat", "lon"]))
-
-    st.markdown('## New location')
-    with st.form('new-location', clear_on_submit=False):
-        cols = st.columns(4)
-        city = cols[0].text_input('City', value='Łódź')
-        street = cols[1].text_input('Street')
-        building_no = cols[2].text_input('Building No.')
-        postal_code = re.sub('[^0-9]', '', cols[3].text_input('Postal Code'))
-        new_variant = st.form_submit_button('Add')
-
-    if new_variant:
         if not city:
             st.error('City must be non-empty')
         elif not street:
