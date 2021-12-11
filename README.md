@@ -14,6 +14,12 @@ Run app by executing the following command in the same directory as `README.md`.
 streamlit run src/app.py
 ```
 
+Run individual scripts as:
+
+```
+python -m src.res
+```
+
 ## Certificates
 Certificate:
 ```

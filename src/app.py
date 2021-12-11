@@ -6,15 +6,14 @@ import pandas as pd
 import numpy as np
 import graphviz as graphviz
 
+from src.req import criterions
+
 sess = st.session_state
 
 app_name = 'HomeFinder'
 
 demo_variants = [
-    {'City': 'Łódź', 'Street': 'Słoneczna', 'Building No.': '64', 'Postcode': '60123'},
-    {'City': 'Łódź', 'Street': 'Dobra', 'Building No.': '42', 'Postcode': '60123'},
-    {'City': 'Łódź', 'Street': 'Radosna', 'Building No.': '33', 'Postcode': '60123'},
-    {'City': 'Łódź', 'Street': 'Pogodna', 'Building No.': '14', 'Postcode': '60123'},
+    {'City': 'Łódź', 'Street': 'ALEKSANDROWSKA', 'Building No.': '104', 'Postal Code': '91224'},
 ]
 
 # profile name -> default preferences
@@ -31,6 +30,11 @@ coarse_criteria = {
 	'advanced': ['Safety', 'Comfort', 'Transport', 'Amenities']
 }
 
+
+def variant_details(x):
+    return criterions(city=x['City'], street=x['Street'], buildingNumber=int(x['Building No.']), code=int(x['Postal Code']))
+
+
 def format_variant(x):
     return f"{x['Street']} {x['Building No.']}, {x['City']}"
 
@@ -45,19 +49,22 @@ def page_variants():
         city = cols[0].text_input('City', value='Łódź')
         street = cols[1].text_input('Street')
         building_no = cols[2].text_input('Building No.')
-        postcode = re.sub("[^0-9]", "", cols[3].text_input('Postcode'))
+        postal_code = re.sub('[^0-9]', '', cols[3].text_input('Postal Code'))
         new_variant = st.form_submit_button('Add')
 
     if new_variant:
-        sess.variants.append({'City': city, 'Street': street, 'Building No.': building_no, 'Postcode': postcode})
+        sess.variants.append({'City': city, 'Street': street, 'Building No.': building_no, 'Postal Code': postal_code})
 
     st.markdown('## My locations')
     st.table(pd.DataFrame(sess.variants))
 
-    st.markdown('## Remove location')
-
     coords = np.random.randn(20, 2)/20 + [51.75, 19.45]
     st.map(pd.DataFrame(coords, columns=['lat', 'lon']))
+
+    if sess.show_variant_details:
+        st.markdown('## Location details')
+        for variant in sess.variants:
+            st.write(variant_details(variant))
 
 def page_profile():
     st.markdown('# 🧑 User Profile')
@@ -125,6 +132,7 @@ def main():
 
     st.sidebar.write('Demo controls')
     demo = st.sidebar.checkbox('Show demo locations', value=True)
+    sess.show_variant_details = st.sidebar.checkbox('Show location details', value=False)
 
     if demo:
         sess.variants = demo_variants
