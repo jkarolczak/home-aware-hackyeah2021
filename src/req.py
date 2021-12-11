@@ -203,7 +203,9 @@ def coordinates(address: Dict) -> tuple:
 
 
 def cr3(address: Dict) -> tuple:
-    return float(_api6(address, "SR_CR3_KREDYTOBIORCY")[0]["result"])
+    res = _api6(address, "SR_CR3_KREDYTOBIORCY")[0]["result"]
+    if res == "null": return 0
+    return float(res)
 
 
 def crimes(data: Dict) -> float:
