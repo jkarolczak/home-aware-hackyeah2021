@@ -5,6 +5,8 @@ import os
 import warnings
 import base64
 
+from collections import defaultdict
+from frozendict import frozendict
 from urllib.parse import urljoin
 from time import time
 
@@ -13,49 +15,53 @@ warnings.filterwarnings("ignore", "1013: InsecureRequestWarning")
 with open("connection.json", "r") as fp:
     _config = json.loads(fp.read())
 
-_cache_dict = {}
+_cache_dict = defaultdict(dict)
 _cache_dir = _config.get("cache_dir", ".cache")
 if not os.path.exists(_cache_dir):
     os.mkdir(_cache_dir)
 
 
 def _payload_hash(payload: str) -> str:
-    return str(base64.b64encode(payload.encode("utf-8")), "utf-8")
+    return str(hash(payload))
+    
 
 
 def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/") -> str:
     # if endpoint + payload is cached in a file, read and return it
-    payload = json.dumps(payload)
 
-    cache_file = os.path.join(_cache_dir, endpoint + '==' + _payload_hash(payload)) + '.json'
+    payload_str = json.dumps(payload)
+    cache_file = os.path.join(_cache_dir, f'{endpoint}=={_payload_hash(payload_str)}.json')
     if cache_file in _cache_dict:
         # level 1 cache
         # print('L1 CACHE', cache_file)
-        return _cache_dict[cache_file]
+        return _cache_dict[endpoint][payload_str]
     elif os.path.exists(cache_file):
         # level 2 cache
         # print('L2 CACHE', cache_file)
         with open(cache_file, "r") as f:
-            data = json.load(f)
-            _cache_dict[cache_file] = data
-            return data
+            for line in f.readlines():
+                data = json.loads(line)
+                inp, out = data['input'], data['output']
+                if payload == inp:
+                    _cache_dict[endpoint][payload_str] = out
+                    return data
 
     response = requests.request("POST", urljoin(base, endpoint),
-                                headers={
-                                    "BIK-OAPI-Key": _config["BIK-OAPI-Key"],
-                                    "Content-Type": "application/json"
-                                },
-                                data=payload,
-                                cert=(_config["cert-crt"], _config["cert-key"]),
-                                verify=False
-                                )
+        headers={
+            "BIK-OAPI-Key": _config["BIK-OAPI-Key"],
+            "Content-Type": "application/json"
+        },
+        data=payload_str,
+        cert=(_config["cert-crt"], _config["cert-key"]),
+        verify=False
+    )
     assert response.status_code == 200, f"API Error ({response.status_code}) ¯\_(ツ)_/¯"
     data = response.json()
 
-    _cache_dict[cache_file] = data
+    _cache_dict[endpoint][payload_str] = data
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
-    with open(cache_file, "w") as f:
-        f.write(json.dumps(data))
+    with open(cache_file, "a") as f:
+        f.write(json.dumps(dict(input=payload, output=data), indent=0))
     return data
 
 
@@ -293,17 +299,17 @@ if __name__ == '__main__':
         "street": "NOWOGRODZKA",
         "buildingNumber": 17
     }
-    #t = time()
-    # a = post_office(address)
-    # a = price_and_safety(address)
-    #print(time() - t, 'seconds')
-    # b = post_office(address)
-    # b = price_and_safety(address)
-    #print(time() - t, 'seconds')
+    t = time()
+    a = post_office(address)
+    #a = price_and_safety(address)
+    print(time() - t, 'seconds')
+    b = post_office(address)
+    #b = price_and_safety(address)
+    print(time() - t, 'seconds')
 
-    # t = time()
-    # c = post_office(address)
-    c = price_and_safety(address)
+    t = time()
+    c = post_office(address)
+    #c = price_and_safety(address)
+    print(time() - t, 'secons')
     print(c)
-    #print(time() - t, 'secons')
-    #assert a == b == c
+    assert a == b == c
