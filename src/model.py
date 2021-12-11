@@ -13,18 +13,18 @@ def partial_utilities(params: Dict, variant: Dict) -> Dict:
     return dict(
         airports=norm(variant['airports'], 0, 10000),
         between_20_30=norm(variant['between_20_30'], 0, 50),
-        bus_stop=norm(variant['bus_stop'], 0, 1000)
+        bus_stop=norm(variant['bus_stop'], 0, 1000),
         car_collisions=norm(variant['car_collisions'], 0, 5),
         civil_services=norm(variant['civil_services'], 0, 1000),
         cr3=variant['cr3']/100,
-        crimes=norm(variant['crimes'], 0, 5)
-        consumer_expenses=(variant['consumer_expenses'], 0, 250000),
+        crimes=norm(variant['crimes'], 0, 5),
+        consumer_expenses=norm(variant['consumer_expenses'], 0, 250000),
         culture_entertainment=norm(variant['culture_entertainment'], 0, 3000),
         dating_apps=variant['dating_apps']/100,
         education=norm(variant['education'], 0, 5),
         freeways=norm(variant['freeways'], 0, 3000),
         garages=norm(variant['garages'], 0, 1000),
-        geoscore=norm(variant['geoscore']/100,
+        geoscore=variant['geoscore']/100,
         mall=norm(variant['mall'], 0, 3000),
         over_60=norm(variant['over_60'], 0, 50),
         parcel_lockers=norm(variant['parcel_lockers'], 0, 1000),
@@ -34,7 +34,7 @@ def partial_utilities(params: Dict, variant: Dict) -> Dict:
         sport=variant['sport']/100,
         tram_stop=norm(variant['tram_stop'], 0, 1000),
         university=norm(variant['university'], 0, 5000),
-        worship=norm(variant['worship'], 3000),
+        worship=norm(variant['worship'], 3000)
     )
 
 
