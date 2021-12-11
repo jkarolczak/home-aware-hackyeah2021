@@ -3,6 +3,7 @@ import json
 import os
 import warnings
 import urllib3
+import utm
 
 from collections import defaultdict
 from deepdiff import DeepHash
@@ -339,6 +340,8 @@ def criterions(code: int, city: str, street: str, buildingNumber: int) -> Dict:
     results["price"] = price
     results["crimes"] = crimes
     results["car_collisions"] = car_collisions
+    a, b = results["coordinates"]
+    results["latlon"] = utm.to_latlon(a, b, 34, 'U') # Hardcode Łódź
     return results
     
 

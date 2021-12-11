@@ -1,5 +1,6 @@
 import re
 import sys
+import utm
 sys.path.append('.')
 import streamlit as st
 import pandas as pd
@@ -31,6 +32,7 @@ coarse_criteria = {
 }
 
 
+@st.experimental_memo
 def variant_details(x):
     return criterions(city=x['City'], street=x['Street'], buildingNumber=int(x['Building No.']), code=int(x['Postal Code']))
 
@@ -55,11 +57,16 @@ def page_variants():
     if new_variant:
         sess.variants.append({'City': city, 'Street': street, 'Building No.': building_no, 'Postal Code': postal_code})
 
-    st.markdown('## My locations')
-    st.table(pd.DataFrame(sess.variants))
+    if sess.variants:
+        st.markdown('## My locations')
+        st.table(pd.DataFrame(sess.variants))
 
-    coords = np.random.randn(20, 2)/20 + [51.75, 19.45]
-    st.map(pd.DataFrame(coords, columns=['lat', 'lon']))
+        coords = []
+        for variant in sess.variants:
+            details = variant_details(variant)
+            lat, lon = details['latlon']
+            coords.append(dict(lat=lat, lon=lon))
+        st.map(pd.DataFrame(coords))
 
     if sess.show_variant_details:
         st.markdown('## Location details')
