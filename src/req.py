@@ -5,6 +5,7 @@ import os
 import warnings
 
 from collections import defaultdict
+from functools import lru_cache
 from urllib.parse import urljoin
 from typing import Tuple, Dict
 
@@ -310,6 +311,7 @@ def worship(address: Dict) -> float:
     return _api4_nearest_poi(address, "D_MIEJSCE_KULTU_KOSCIOL")["D_MIEJSCE_KULTU_KOSCIOL"]
 
 
+@lru_cache(maxsize=256)
 def criterions(address: Dict) -> Dict:
     functions = [
         consumer_expenses, university, education, dating_apps, between_20_30, 
