@@ -45,7 +45,7 @@ def _api(
                 print('L2 CACHE', cache_file)
                 _cache_dict[endpoint][payload_str] = out
                 return out
-    
+
     response = requests.request("POST", urljoin(base, endpoint),
         headers={
             "BIK-OAPI-Key": _config["BIK-OAPI-Key"],
