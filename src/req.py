@@ -31,12 +31,10 @@ def _api(
     # if endpoint + payload is cached in a file, read and return it
 
     payload_str = json.dumps(payload)
-    cache_file = os.path.join(
-        _cache_dir, f"{endpoint}=={_payload_hash(payload_str)}.json"
-    )
+    cache_file = os.path.join(_cache_dir, f"{endpoint}=={_payload_hash(payload_str)}.json")
     if cache_file in _cache_dict:
         # level 1 cache
-        # print('L1 CACHE', cache_file)
+        print('L1 CACHE', cache_file)
         return _cache_dict[endpoint][payload_str]
     elif os.path.exists(cache_file):
         # level 2 cache
@@ -44,7 +42,7 @@ def _api(
             data = json.loads(f.read())
             inp, out = data["input"], data["output"]
             if payload == inp:
-                # print('L2 CACHE', cache_file)
+                print('L2 CACHE', cache_file)
                 _cache_dict[endpoint][payload_str] = out
                 return out
     
@@ -62,8 +60,9 @@ def _api(
 
     _cache_dict[endpoint][payload_str] = data
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    print('save to', cache_file)
     with open(cache_file, "a") as f:
-        f.write(json.dumps(dict(input=payload, output=data))
+        f.write(json.dumps(dict(input=payload, output=data)))
     return data
 
 
@@ -105,7 +104,7 @@ def _api4_demographic(address: Dict, demographicData: str) -> float:
         "address": address,
         "demographicData": demographicData
     }
-    return _api("/bik-api-4/dane-demograficzne-adres", payload)["demographicData"]
+    return _api("bik-api-4/dane-demograficzne-adres", payload)["demographicData"]
     
     
 def _api6(address: Dict, section: str) -> float:
@@ -210,7 +209,7 @@ def consumer_expenses(address: Dict) -> float:
         "address": address,
         "wealth": "WK_RAZEM"
     }
-    return _api("/bik-api-4/zamoznosc-adres", payload)["wealth"]["WK_RAZEM"]
+    return _api("bik-api-4/zamoznosc-adres", payload)["wealth"]["WK_RAZEM"]
 
 
 def culture_entertainment(address: Dict) -> float:
@@ -317,7 +316,7 @@ def worship(address: Dict) -> float:
 
 
 @lru_cache(maxsize=256)
-def criterions(address: Dict) -> Dict:
+def criterions(code: int, city: str, street: str, buildingNumber: int) -> Dict:
     functions = [
         consumer_expenses, university, education, dating_apps, between_20_30, 
         parcel_lockers, civil_services, railway_tracks, freeways, airports, 
@@ -325,19 +324,15 @@ def criterions(address: Dict) -> Dict:
         mall, culture_entertainment, health, geoscore, cr3, over_60, worship, 
         sport, coordinates
     ]
+    address = { "code": code, "city": city, "street": street, "buildingNumber": buildingNumber }
     results = {fun.__name__: fun(address) for fun in functions}
     price, crimes, car_collisions = price_and_safety(address)
     results["price"] = price
     results["crimes"] = crimes
     results["car_collisions"] = car_collisions
+    return results
     
 
 if __name__ == '__main__':
-    address = {
-        "code": 92221,
-        "city": "Łódź",
-        "street": "NOWOGRODZKA",
-        "buildingNumber": 17
-    }
-    
-    print(dating_apps(address))
+    #print(university(dict(code=91224, city="Łódź", street="ALEKSANDROWSKA", buildingNumber=104)))
+    print(criterions(code=91224, city="Łódź", street="ALEKSANDROWSKA", buildingNumber=104))

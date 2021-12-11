@@ -8,8 +8,9 @@ def clip(x, mini, maxi):
 
 def partial_utilities(params: dict, variant: dict):
     return dict(
-        dating_apps=params['dating_apps_weight'] * variant['dating_apps_percent']/100,
-        university=params['university_weight'] * clip(params['university_scale'] / variant['university_distance'], 0, 1),
+        dating_apps=variant['dating_apps_percent']/100,
+        university=variant['university_distance'],
+        education=variant['education_distance'],
     )
 
 
