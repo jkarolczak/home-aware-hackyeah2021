@@ -76,6 +76,38 @@ def post_office(address: dict) -> float:
     return _api4_nearest_poi(address, "D_POCZTA")["D_POCZTA"]
 
 
+def _api3_safety(address: dict) -> dict:
+    payload = {
+            "address": {
+                "code": str(address["code"]),
+                "city": address["city"],
+                "street": address["street"],
+                "building_number": str(address["buildingNumber"]),
+            },
+            "grid_list": [500],
+            "category_list": ["price", "crime", "road_accident"],
+    }
+    
+    return _api("bik-api-3/bezpieczenstwo-adres", payload)[0]["details"]
+
+
+def crimes(data: dict) -> float:
+    return sum(data["details"].values())
+
+
+def price(data: dict) -> float:
+    return data["details"]["offer_price"]
+
+
+def car_collisions(data: dict) -> float:
+    return data["details"]["hitting_a_pedestrian"]
+
+
+def price_and_safety(address: dict) -> (float, float, float):
+    data = _api3_safety(address)
+    return price(data[0]), crimes(data[1]), car_collisions(data[2])
+
+
 if __name__ == '__main__':
     address = {
         "code": 92221,
@@ -83,17 +115,21 @@ if __name__ == '__main__':
         "street": "NOWOGRODZKA",
         "buildingNumber": 17
     }
-    t = time()
-    a = post_office(address)
-    print(time() - t, 'seconds')
+    #t = time()
+    # a = post_office(address)
+    # a = price_and_safety(address)
+    #print(time() - t, 'seconds')
 
     t = time()
-    b = post_office(address)
-    print(time() - t, 'seconds')
+    # b = post_office(address)
+    # b = price_and_safety(address)
+    #print(time() - t, 'seconds')
 
     t = time()
-    c = post_office(address)
-    print(time() - t, 'seconds')
+    # c = post_office(address)
+    c = price_and_safety(address)
+    print(c)
+    #print(time() - t, 'secons')
 
-    assert a == b == c
+    #assert a == b == c
 
