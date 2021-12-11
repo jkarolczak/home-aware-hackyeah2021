@@ -37,12 +37,15 @@ def _api(endpoint: str, payload: dict, base: str = "https://gateway.oapi.bik.pl/
         return _cache_dict[endpoint][payload_str]
     elif os.path.exists(cache_file):
         # level 2 cache
-        # print('L2 CACHE', cache_file)
         with open(cache_file, "r") as f:
             for line in f.readlines():
                 data = json.loads(line)
                 inp, out = data['input'], data['output']
                 if payload == inp:
+<<<<<<< HEAD
+=======
+                    # print('L2 CACHE', cache_file)
+>>>>>>> f9df448be0b613b8835053ea64e9b8ab41039c92
                     _cache_dict[endpoint][payload_str] = out
                     return data
 
