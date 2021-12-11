@@ -1,3 +1,4 @@
+import re
 import sys
 sys.path.append('.')
 import streamlit as st
@@ -25,11 +26,10 @@ profiles = {
     'Pensioner': [],
 }
 
-coarse_criteria = [
-    'Safety', 'Education', 'Nature',
-    'Transport', 'Amenities', 'Services',
-    'Comfort', 'Community', 'Extraversion'
-]
+coarse_criteria = {
+	'basic': ['Education', 'Nature', 'Services', 'Community', 'Extraversion'],
+	'advanced': ['Safety', 'Comfort', 'Transport', 'Amenities']
+}
 
 def format_variant(x):
     return f"{x['Street']} {x['Building No.']}, {x['City']}"
@@ -45,7 +45,7 @@ def page_variants():
         city = cols[0].text_input('City', value='Łódź')
         street = cols[1].text_input('Street')
         building_no = cols[2].text_input('Building No.')
-        postcode = cols[3].text_input('Postcode')
+        postcode = re.sub("[^0-9]", "", cols[3].text_input('Postcode'))
         new_variant = st.form_submit_button('Add')
 
     if new_variant:
@@ -66,8 +66,13 @@ def page_profile():
 
     n_cols = 3
     cols = st.columns(n_cols)
-    for i, name in enumerate(coarse_criteria):
-        cols[i % n_cols].slider(name, min_value=1, max_value=10, value=5)
+    for i, name in enumerate(coarse_criteria['basic']):
+    	cols[i % n_cols].slider(name, min_value=1, max_value=10, value=5)
+	
+    with st.expander("See advanced options"):
+        st.write('Choose your priorities')
+        for name in coarse_criteria['advanced']:
+            st.checkbox(name)
 
 def page_analysis():
     st.markdown('# 🧑‍🔬 Analysis')
@@ -82,8 +87,12 @@ def page_preferences():
         worse = st.selectbox('Location 2', sess.variants, format_func=format_variant)
         new_pref = st.form_submit_button('Add')
 
-    if new_pref:
+    if new_pref and better != worse:
+        if (format_variant(worse), format_variant(better)) in sess.preferences:
+            sess.preferences.remove((format_variant(worse), format_variant(better)))
+            st.warning('Be careful! You\'ve already compared those two options and your choice has changed.')
         sess.preferences.append((format_variant(better), format_variant(worse)))
+
 
     if sess.preferences:
         st.markdown('## Preference graph')
