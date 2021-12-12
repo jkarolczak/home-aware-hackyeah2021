@@ -118,10 +118,10 @@ def page_variants():
             st.error('Street must be non-empty')
         elif not (building_no and building_no.isnumeric()):
             st.error('Building No. must be a number')
-        elif postal_code:
+        elif not postcode:
             st.error('Postal Code must be non-empty')
         else:
-            sess.variants.append({'City': city, 'Street': street, 'Building No.': building_no, 'Postal Code': postal_code})
+            sess.variants.append({'City': city, 'Street': street, 'Building No.': building_no, 'Postal Code': postcode})
 
     if sess.variants:
         st.markdown('## My locations')
