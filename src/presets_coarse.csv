@@ -1,0 +1,9 @@
+name,Student,Couple,Family,Working Adult,Pensioner
+Education,1.0,0.0,0.8,0.0,0.0
+Safety,0.5,0.5,0.5,0.5,1
+Transport,1.0,1.0,0.5,0.5,1.0
+Services,0.5,0.5,0.5,0.5,0.5
+Extraversion,0.8,0.0,0.0,0.5,0.0
+Community,0.1,0.2,0.5,0.2,1.0
+Nature,1.0,1.0,1.0,1.0,1.0
+Comfort,0.4,0.5,0.7,0.5,0.8

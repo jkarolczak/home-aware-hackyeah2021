@@ -8,15 +8,29 @@ import numpy as np
 import graphviz as graphviz
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 from src.req import criterions
-from src.model import partial_utilities, global_utility
+from src.model import partial_utilities, global_utility, default_thresholds
 
 plt.style.use('ggplot')
 
 sess = st.session_state
 
-app_name = "HomeFinder"
+app_name = "__homeAware__"
+
+coarse_criteria = {
+    'Education': [ 'education', 'university' ],
+    'Safety': ['car_collisions', 'consumer_expenses', 'cr3', 'crimes', 'geoscore'],
+    'Transport': ['garages', 'tram_stop', 'bus_stop', 'railway_station'],
+    'Services': ['parcel_lockers', 'post_office', 'health', 'culture_entertainment', 'mall'],
+    'Extraversion': ['between_20_30', 'dating_apps'],
+    'Community': ['over_60', 'sport', 'worship'],
+    'Nature': ['nature'],
+    'Comfort': ['airport', 'civil_services', 'railway_tracks', 'freeways'],       
+}
+
+coarse_criteria_profiles = pd.read_csv('src/presets_coarse.csv', index_col='name').to_dict()
 
 demo_variants = [
     {'City': 'Łódź', 'Street': 'ALEKSANDROWSKA', 'Building No.': '104', 'Postal Code': '91224'},
@@ -34,45 +48,44 @@ def read_profiles():
 # profile name -> default preferences
 profiles = read_profiles()
 
-coarse_criteria = [
-    "Safety",
-    "Education",
-    "Nature",
-    "Transport",
-    "Services",
-    "Comfort",
-    "Community",
-    "Extraversion",
-]
-
 hidden_criteria = {
-    "Safety": ["Number of car collisions with pedestrians"],
-    "Education": ["Universities nearby", "Schools nearby"],
-    "Nature": ["Amount of green spaces"],
+    "Education": [
+        ("university", "Universities are at most this far away (km)"),
+        ("education", "Primary or high schools are at most this far away (km)"),
+    ],
+    "Safety": [
+        ("car_collisions", "Number of car collisions with pedestrians is lower than"),
+    ],
+    "Nature": [
+        ("nature", "Nearby areas are composed of at least this much green spaces (%)"),
+    ],
     "Transport": [
-        "Number of garages",
-        "Tram stop nearby",
-        "Bus stop nearby",
-        "Railway station nearby",
+        ("garages", "Number of garages is at least"),
+        ("tram_stop", "Tram stop is at most this far away (km)"),
+        ("bus_stop", "Bus stop is at most this far away (km)"),
+        ("railway_station", "Railway station is at most this far away (km)"),
     ],
     "Services": [
-        "Post office nearby",
-        "Mall nearby",
-        "Culture entertainment nearby",
-        "Health services nearby",
+        ("post_office", "Post office is at most this far away (km)"),
+        ("mall", "Shopping mall is at most this far away (km)"),
+        ("culture_entertainment", "Culture and entertainment is at most this far away (km)"),
+        ("health", "Health services is at most this far away (km)"),
     ],
     "Comfort": [
-        "Parcel lockers",
-        "Distance to civil services",
-        "Distance to railway tracks",
-        "Distance to freeways",
+        ("parcel_lockers", "Parcel locker is at most this far away (km)"),
+        ("civil_services", "Distance to civil services is more than (km) (affects noise levels)"),
+        ("railway_tracks", "Distance to railway tracks is more than (km) (affects noise levels)"),
+        ("freeways", "Distance to freeways is more than (km) (affects noise levels)"),
     ],
     "Community": [
-        "Amount of people playing sports",
-        "Amout of older people",
-        "Places of worship nearby",
+        ("sport", "Number of people playing sports is at least"),
+        ("over_60", "Number of older people is at least"),
+        ("worship", "Place of worship is at most this far away (km)"),
     ],
-    "Extraversion": ["Amount of dating apps users", "Amount of young adults"],
+    "Extraversion": [
+        ("dating_apps", "Number of dating apps users is at least (%)"),
+        ("between_20_30", "Number of young adults is at least")
+    ],
 }
 
 
@@ -128,86 +141,110 @@ def page_variants():
 def page_profile():
     st.markdown("# 🧑 User Profile")
 
-    sess.profile = st.selectbox("I'm best described as...", profiles.keys())
+    sess.profile = st.selectbox("I'm best described as...", profiles.keys(), index=list(profiles.keys()).index(sess.profile))
 
-    n_cols = 3
+    st.markdown('### My values')
+    n_cols = 4
     cols = st.columns(n_cols)
-    for i, name in enumerate(coarse_criteria):
-        cols[i % n_cols].slider(name, min_value=1, max_value=10, value=5)
+    weights = coarse_criteria_profiles[sess.profile]
+    for i, (name, value) in enumerate(weights.items()):
+        sess.weights[name] = cols[i % n_cols].slider(name, min_value=0, max_value=100, step=10, value=int(value*100), format='%d%%') / 100
 
     with st.expander("See advanced options"):
         option = st.selectbox(label='Choose category', options=coarse_criteria)
         if option:
-            st.write("How important for you is:")
-            for name in hidden_criteria[option]:
-                st.number_input(name, min_value=1, max_value=10, value=5)
-
-
-def page_analysis():
-    st.markdown("# 🧑‍🔬 Analysis")
+            st.write("I would like the following to be true:")
+            for name, description in hidden_criteria[option]:
+                sess.thresholds[name] = st.number_input(description, value=sess.thresholds[name])
 
 
 def page_preferences():
-    st.markdown("# 🤔 Preferences")
-    st.markdown(
-        f"If given two choices, which one do you prefer? {app_name} will learn from your preferences and adjust your profile _a bit_."
-    )
+    st.markdown("# 🤔 Preferences (optional)")
+    st.markdown(f"If given two choices, which one do you prefer? {app_name} will learn from your preferences and adjust your profile _a bit_.")
+    st.markdown("You can skip this step if you _really_ don't have any preferences.")
+    col1, col2 = st.columns([1, 2])
 
-    with st.form("new-preference"):
-        better = st.selectbox("Location 1", sess.variants, format_func=format_variant)
-        st.markdown("**is better than**")
-        worse = st.selectbox("Location 2", sess.variants, format_func=format_variant)
-        new_pref = st.form_submit_button("Add")
+    col1.markdown('### New preference')
+    with col1.form('new-preference'):
+        better = st.selectbox('Location 1', sess.variants, format_func=format_variant)
+        st.markdown('**is better than**')
+        worse = st.selectbox('Location 2', sess.variants, format_func=format_variant)
+        new_pref = st.form_submit_button('Add')
 
-    if new_pref and better != worse:
-        if (format_variant(worse), format_variant(better)) in sess.preferences:
-            sess.preferences.remove((format_variant(worse), format_variant(better)))
-            st.warning(
-                "Be careful! You've already compared those two options and your choice has changed."
-            )
-        sess.preferences.append((format_variant(better), format_variant(worse)))
-    elif new_pref and better == worse:
-        st.error(
-            "You are trying to compare a house with itself! Find it a different opponent."
-        )
+    if new_pref:
+        a, b = format_variant(better), format_variant(worse)
+        if better == worse:
+            st.error('You are trying to compare a house with itself! Find it a different opponent.')
+        else:
+            if (b, a) in sess.preferences:
+                sess.preferences.remove((b, a))
+                st.warning("Be careful! You've already compared those two options and your choice has changed.")
+            sess.preferences.append((a, b))
 
     if sess.preferences:
-        st.markdown("## Preference graph")
-        g = graphviz.Digraph()
+        col2.markdown('### Preference graph')
+        g = graphviz.Digraph(node_attr=dict(shape='box', style='rounded'))
         for better, worse in sess.preferences:
             g.edge(better, worse)
-        st.graphviz_chart(g, use_container_width=True)
+        col2.graphviz_chart(g, use_container_width=True)
+
+    st.markdown('### Profile adjustment')
+    st.markdown('Your profile was adjusted based on your preferences')
+    coarse_profile = coarse_criteria_profiles[sess.profile]
+    n = len(coarse_profile)
+    n_cols = 4
+    cols = st.columns(n_cols)
+    for i, (group, weight) in enumerate(coarse_profile.items()):
+        delta = np.random.randint(-10, 10)
+        weight = max(0, min(100, weight * 100 + delta))
+        cols[i % n_cols].metric(group, f'{weight}%', delta=f'{delta}%')
+            
 
 
 def page_analysis():
     st.markdown('# 🧑‍🔬 Analysis')
 
     pref = profiles[sess.profile]
-        
-    st.subheader('Profile')
-    st.write(pref)
 
-    for variant in sess.variants:
+    st.markdown('## Final ranking')
+
+    weights_norm = sum(sess.weights.values())
+    results = []
+    for i, variant in enumerate(sess.variants):
         details = variant_details(variant)
-        st.write(variant)
+        fine_u = partial_utilities(sess.thresholds, details)
+        coarse_u = {}
+        for coarse, fine_criteria in coarse_criteria.items():
+            coarse_u[coarse] = sess.weights[coarse] / weights_norm * np.mean([fine_u[fine] for fine in fine_criteria])
 
-        util = partial_utilities(pref, details)
-        score = global_utility(pref, details)
+        score = np.sum(list(coarse_u.values()))
+        variant['HomeScore'] = score
+        results.append(dict(score=score, coarse=coarse_u, fine=fine_u, variant=variant, details=details))
 
-        fig, ax = plt.subplots()
-        df = pd.DataFrame()
-        df['Criterion'] = list(pref.keys())
-        df['Utility'] = [pref[k]*util[k] for k in pref]
-        df = df.sort_values(by='Utility', ascending=False)
+    ranking = sorted(results, key=lambda x: x['score'], reverse=True)
+    ranking = pd.DataFrame([x['variant'] for x in ranking])
+    ranking['Rank'] = np.arange(len(ranking)) + 1
 
-        sns.barplot(y='Criterion', x='Utility', data=df, ax=ax)
-        ax.set_ylabel('Criterion'); ax.set_xlabel('Utility')
-        st.pyplot(fig)
+    st.table(ranking)
 
-        st.subheader(f'HomeScore: {score:.4f}')
+    st.markdown('## Comparison')
 
-        st.write(details)
-        st.markdown('---')
+    st.markdown('## Explanation')
+    result = st.selectbox('Location to analyze', results, format_func=lambda x: format_variant(x['variant']))
+
+    fig = go.Figure(go.Waterfall(
+        y=list(result['coarse'].keys()),
+        x=list(result['coarse'].values()),
+        orientation='h',
+        connector=dict(line=dict(width=1, color='#333', dash='solid')),
+    ))
+    fig.update_layout(title='Influence of each criterion')
+    fig.update_xaxes(range=[0, 1])
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown('### Key insights')
+    #st.write(details)
+    #st.write(utilities)
 
 def page_tuning():
     st.markdown("# 🔧 Fine-tuning")
@@ -215,12 +252,16 @@ def page_tuning():
 
 def main():
     # initialize state
-    if "variants" not in sess:
+    if 'variants' not in sess:
         sess.variants = []
     if 'preferences' not in sess:
         sess.preferences = []
-    
-    sess.profile = 'Student'
+    if 'thresholds' not in sess:
+        sess.thresholds = default_thresholds 
+    if 'profile' not in sess:
+        sess.profile = 'Student'
+    if 'weights' not in sess:
+        sess.weights = coarse_criteria_profiles[sess.profile]
 
     st.set_page_config(
         page_title="Rośliniary App",
@@ -228,16 +269,14 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    st.sidebar.markdown(f"# {app_name} 🌟")
+    st.sidebar.markdown(f"# {app_name} 💡")
 
     pages = {
         '1️. Locations': page_variants,
         '2. User Profile': page_profile,
-        '3. Preferences (optional)': page_preferences,
-        '4. Analysis': page_analysis,
-        #'5. Fine-tuning': page_tuning,
+        '3. Analysis': page_analysis,
     }
-    name = st.sidebar.radio('Select step', pages.keys(), index=0)
+    name = st.sidebar.radio('Select step', pages.keys(), index=2)
 
     st.sidebar.write('Demo controls')
     demo = st.sidebar.checkbox('Show demo locations', value=True)
