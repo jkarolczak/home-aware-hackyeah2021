@@ -2,7 +2,7 @@
 
 ## How to use
 
-To use HomeAware addresses of the houses interesting for the user should be loaded. To do that, enter addresses in the text fields accordingly and press “Add”. Here we’ve already added four locations.
+To use HomeAware addresses of the houses interesting for the user should be loaded. To do that, enter addresses in the text fields accordingly and press “Add”. Here we’ve already added four locations, if you want to add your own just uncheck "Show demo locations" on the left panel.
 
 ![locations](static/locations.png)
 
@@ -26,7 +26,7 @@ Additionally, an explanation for each address is provided, presenting the result
 
 ![analysis](static/analysis.png)
 
-Additionally, an explanation for each address is provided, presenting the result on each category.
+Additionally, an explanation for each address is provided, presenting the result on each category. After clicking "Show location details" on the left panel, real values obtained from BIK Open API for each category can be shown.
 
 ![explanation](static/explanation.png)
 
