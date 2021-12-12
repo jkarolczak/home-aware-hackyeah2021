@@ -185,31 +185,71 @@ def page_analysis():
     pref = profiles[sess.profile]
         
     st.subheader('Profile')
-    st.write(pref)
+    col_size = [2] + [1] * len(sess.variants)
 
+    df = pd.DataFrame()
+    df['Criterion'] = list(pref.keys())
+    df['Criterion'] = df['Criterion'].str.capitalize().str.replace("_", " ")
     for variant in sess.variants:
+        address = f"{variant['Street']} {variant['Building No.']}"
         details = variant_details(variant)
-        st.write(variant)
-
         util = partial_utilities(pref, details)
         score = global_utility(pref, details)
+        df[address] = [pref[k] * util[k] for k in pref]
 
-        fig, ax = plt.subplots()
-        df = pd.DataFrame()
-        df['Criterion'] = list(pref.keys())
-        df['Utility'] = [pref[k]*util[k] for k in pref]
-        df = df.sort_values(by='Utility', ascending=False)
-        st.table(df)
+    df["std"] = df.std(axis=1)
+    df = df.sort_values(by='std', ascending=False)
+    df.drop(["std"], axis=1)
+
+    cols = st.columns(col_size)
+    for col, val in zip(cols, df.columns):
+        col.write(f"**{val}**")
+
+    for i, row in df.iterrows():
+        cols = st.columns(col_size)
+        cols[0].write(row[0])
+        for col, color in zip(cols[1:], row[1:]):
+            col.write(color)
+            #col.image(f"static/{color}.png", width=32)
+
+    for col in df.columns[1:]:
+        df[col] = pd.qcut(df[col], 3, labels=['red', 'yellow', 'green'])
+
+    cols = st.columns(col_size)
+    for col, val in zip(cols, df.columns):
+        col.write(f"**{val}**")
+
+    for i, row in df.iterrows():
+        cols = st.columns(col_size)
+        cols[0].write(row[0])
+        for j, (col, color) in enumerate(zip(cols[1:], row[1:])):
+            #col.image(f"static/{color}.png", width=28)
+            col.text_areatoolt("abc", help="toooltip", key=f"{i}{j}")
 
 
-        sns.barplot(y='Criterion', x='Utility', data=df, ax=ax)
-        ax.set_ylabel('Criterion'); ax.set_xlabel('Utility')
-        st.pyplot(fig)
-
-        st.subheader(f'HomeScore: {score:.4f}')
-
-        st.write(details)
-        st.markdown('---')
+    #
+    # for variant in sess.variants:
+    #     details = variant_details(variant)
+    #     st.write(variant)
+    #
+    #     util = partial_utilities(pref, details)
+    #     score = global_utility(pref, details)
+    #
+    #     fig, ax = plt.subplots()
+    #     df = pd.DataFrame()
+    #     df['Criterion'] = list(pref.keys())
+    #     df['Utility'] = [pref[k]*util[k] for k in pref]
+    #     df = df.sort_values(by='Utility', ascending=False)
+    #
+    #
+    #     sns.barplot(y='Criterion', x='Utility', data=df, ax=ax)
+    #     ax.set_ylabel('Criterion'); ax.set_xlabel('Utility')
+    #     st.pyplot(fig)
+    #
+    #     st.subheader(f'HomeScore: {score:.4f}')
+    #
+    #     st.write(details)
+    st.markdown('---')
 
 def page_tuning():
     st.markdown("# 🔧 Fine-tuning")
@@ -251,7 +291,8 @@ def main():
         sess.variants = []
 
     # st.sidebar.info('Rośliniary Team :)')
-    pages[name]()
+    # pages[name]()
+    page_analysis()
 
 
 if __name__ == "__main__":
