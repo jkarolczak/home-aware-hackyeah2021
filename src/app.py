@@ -288,7 +288,8 @@ def main():
         sess.variants = []
 
     # st.sidebar.info('Rośliniary Team :)')
-    pages[name]()
+    # pages[name]()
+    page_analysis()
 
 
 if __name__ == "__main__":
