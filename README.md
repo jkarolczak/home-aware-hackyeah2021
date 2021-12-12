@@ -2,7 +2,7 @@
 
 ## How to use
 
-To use HomeAware addresses of the houses interesting for the user should be loaded. To do that, enter addresses in the text fields accordingly and press “Add”. Here we’ve already added four locations, if you want to add your own just uncheck "Show demo locations" on the left panel.
+To use HomeAware, addresses of the houses interesting for the user should be loaded. To do that, enter addresses in the text fields accordingly and press “Add”. Here we’ve already added four locations, if you want to add your own just uncheck "Show demo locations" on the left panel.
 
 ![locations](static/locations.png)
 
@@ -20,9 +20,9 @@ Users can choose for which category they can access its precise criterion, hidde
 
 ![advanced](static/advanced.png)
 
-Finally, the app shows the final ranking of houses provided and shows the comparison of different criteria among them.
+Finally, the app shows the final ranking of houses provided and shows the comparison of different criteria among them. The comparison is based on quartile values of each criterion - green dots mean that the location is better than the others, red dots mean that its worse than the others, and yellow dots signify indifference.
 
-Additionally, an explanation for each address is provided, presenting the result on each category.
+Additionally, an explanation for each address is provided, presenting the result on each category with a waterfall chart.
 
 ![analysis](static/analysis.png)
 
