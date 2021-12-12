@@ -38,7 +38,7 @@ demo_variants = [
     {'City': 'Łódź', 'Street': 'LEGIONÓW', 'Building No.': '32', 'Postal Code': '90001'},
     {'City': 'Łódź', 'Street': 'ROMANOWSKA', 'Building No.': '55', 'Postal Code': '91174'},
     {'City': 'Łódź', 'Street': 'PŁOCKA', 'Building No.': '10', 'Postal Code': '90001'},
-    {'City': 'Łódź', 'Street': 'WYŻSZA', 'Building No.': '25', 'Postal Code': '93266'},
+    #{'City': 'Łódź', 'Street': 'WYŻSZA', 'Building No.': '25', 'Postal Code': '93266'},
     #{'City': 'Łódź', 'Street': 'TATRZAŃSKA', 'Building No.': '28', 'Postal Code': '93115'},
 ]
 
@@ -142,7 +142,10 @@ def page_variants():
 def page_profile():
     st.markdown("# 🎭 User Profile")
 
-    sess.profile = st.selectbox("I'm best described as...", profiles.keys(), index=list(profiles.keys()).index(sess.profile))
+    new_profile = st.selectbox("I'm best described as...", profiles.keys(), index=list(profiles.keys()).index(sess.profile))
+    if new_profile != sess.profile:
+        sess.weights = coarse_criteria_profiles[sess.profile]
+    sess.profile = new_profile
 
     st.markdown('### My values')
     n_cols = 4
@@ -234,6 +237,7 @@ def page_analysis():
     locations = [format_variant(x['variant']) for x in results]
     df = pd.DataFrame([x['coarse'] for x in ranking]).T
     df.columns = locations
+    df = df.T
 
     Q = df.quantile([0.25, 0.75])
     df_str = df.astype(str)
@@ -241,10 +245,11 @@ def page_analysis():
     df_str[df > Q.iloc[1, :]] = '🟢'
     df_str[(Q.iloc[0, :] <= df) & (df <= Q.iloc[1, :])] = '🟡'
 
-    st.table(df.T if is_raw else df_str.T)
+    st.table(df if is_raw else df_str)
 
     st.markdown('## Explanation')
     result = st.selectbox('Location to analyze', results, format_func=lambda x: format_variant(x['variant']))
+    if result is None: return
 
     fig = go.Figure(go.Waterfall(
         y=list(result['coarse'].keys()),
@@ -256,8 +261,9 @@ def page_analysis():
     fig.update_xaxes(range=[0, 1])
     st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown('### Key insights')
-    st.write(result['fine'])
+    if sess.show_variant_details:
+        st.markdown('### Location details')
+        st.write(result['fine'])
 
 
 def main():
@@ -274,7 +280,7 @@ def main():
         sess.weights = coarse_criteria_profiles[sess.profile]
 
     st.set_page_config(
-        page_title="Rośliniary App",
+        page_title="homeAware",
         page_icon="🌱",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -286,7 +292,7 @@ def main():
         '2. User Profile': page_profile,
         '3. Analysis': page_analysis,
     }
-    name = st.sidebar.radio('Select step', pages.keys(), index=2)
+    name = st.sidebar.radio('Select step', pages.keys(), index=0)
 
     st.sidebar.write('Demo controls')
     demo = st.sidebar.checkbox('Show demo locations', value=True)
