@@ -26,7 +26,7 @@ Additionally, an explanation for each address is provided, presenting the result
 
 ![analysis](static/analysis.png)
 
-Additionally, an explanation for each address is provided, presenting the result on each category. After clicking "Show location details" on the left panel, real values obtained from BIK Open API for each category can be shown.
+Additionally, an explanation for each address is provided, presenting the result on each category. After clicking "Show location details" on the left panel, the influence of all values (not summed into categories) can be shown.
 
 ![explanation](static/explanation.png)
 
