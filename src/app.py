@@ -9,6 +9,7 @@ import graphviz as graphviz
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import plotly.express as px
 
 from src.req import criterions
 from src.model import partial_utilities, global_utility, default_thresholds
@@ -139,15 +140,14 @@ def page_variants():
             st.write(variant_details(variant))
 
 def page_profile():
-    st.markdown("# 🧑 User Profile")
+    st.markdown("# 🎭 User Profile")
 
     sess.profile = st.selectbox("I'm best described as...", profiles.keys(), index=list(profiles.keys()).index(sess.profile))
 
     st.markdown('### My values')
     n_cols = 4
     cols = st.columns(n_cols)
-    weights = coarse_criteria_profiles[sess.profile]
-    for i, (name, value) in enumerate(weights.items()):
+    for i, (name, value) in enumerate(sess.weights.items()):
         sess.weights[name] = cols[i % n_cols].slider(name, min_value=0, max_value=100, step=10, value=int(value*100), format='%d%%') / 100
 
     with st.expander("See advanced options"):
@@ -218,16 +218,30 @@ def page_analysis():
             coarse_u[coarse] = sess.weights[coarse] / weights_norm * np.mean([fine_u[fine] for fine in fine_criteria])
 
         score = np.sum(list(coarse_u.values()))
-        variant['HomeScore'] = score
+        variant['MatchScore'] = score
         results.append(dict(score=score, coarse=coarse_u, fine=fine_u, variant=variant, details=details))
 
     ranking = sorted(results, key=lambda x: x['score'], reverse=True)
-    ranking = pd.DataFrame([x['variant'] for x in ranking])
-    ranking['Rank'] = np.arange(len(ranking)) + 1
+    ranking_df = pd.DataFrame([x['variant'] for x in ranking])
+    ranking_df['Rank'] = np.arange(len(ranking)) + 1
 
-    st.table(ranking)
+    st.table(ranking_df)
 
     st.markdown('## Comparison')
+
+    is_raw = st.checkbox('Show raw values')
+
+    locations = [format_variant(x['variant']) for x in results]
+    df = pd.DataFrame([x['coarse'] for x in ranking]).T
+    df.columns = locations
+
+    Q = df.quantile([0.25, 0.75])
+    df_str = df.astype(str)
+    df_str[df < Q.iloc[0, :]] = '🔴️'
+    df_str[df > Q.iloc[1, :]] = '🟢'
+    df_str[(Q.iloc[0, :] <= df) & (df <= Q.iloc[1, :])] = '🟡'
+
+    st.table(df.T if is_raw else df_str.T)
 
     st.markdown('## Explanation')
     result = st.selectbox('Location to analyze', results, format_func=lambda x: format_variant(x['variant']))
@@ -243,11 +257,7 @@ def page_analysis():
     st.plotly_chart(fig, use_container_width=True)
     
     st.markdown('### Key insights')
-    #st.write(details)
-    #st.write(utilities)
-
-def page_tuning():
-    st.markdown("# 🔧 Fine-tuning")
+    st.write(result['fine'])
 
 
 def main():
@@ -287,9 +297,8 @@ def main():
     else:
         sess.variants = []
 
+    pages[name]()
     # st.sidebar.info('Rośliniary Team :)')
-    # pages[name]()
-    page_analysis()
 
 
 if __name__ == "__main__":
